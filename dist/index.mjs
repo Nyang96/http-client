@@ -81,7 +81,7 @@ var t = (e) => e ? typeof e == "function" ? e : (e, t) => {
 	let l = t(e.debug), d = u(e);
 	n(d, l), c(d), r(d, l), e.retry && o(d, e.retry, l), s(d, e, "public");
 	let f = null;
-	return e.auth && (f = u(e), n(f, l), c(d), i(f, e.auth), r(f, l), a(f, e, l), e.retry && o(f, e.retry, l), s(f, e, "private")), {
+	return e.auth && (f = u(e), n(f, l), c(f), i(f, e.auth), r(f, l), a(f, e, l), e.retry && o(f, e.retry, l), s(f, e, "private")), {
 		publicClient: d,
 		privateClient: f
 	};

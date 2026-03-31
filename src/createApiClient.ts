@@ -44,7 +44,7 @@ export const createApiClient = (config: ApiClientConfig): ApiClientInstance => {
   if (config.auth) {
     privateClient = createBaseInstance(config);
     setupRequestLogger(privateClient, log);
-    setupContentTypeInterceptor(publicClient);
+    setupContentTypeInterceptor(privateClient);
     setupAuthRequestInterceptor(privateClient, config.auth);
     setupResponseLogger(privateClient, log);
     setupRefreshInterceptor(privateClient, config, log);
