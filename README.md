@@ -1,6 +1,6 @@
-# @le/http-client
+# @le/api-client
 
-Axios 기반 HTTP 클라이언트 패키지
+Axios 기반 API 클라이언트 패키지
 
 - 토큰 자동 주입 / 리프레시 / 큐잉
 - public / private 클라이언트 분리
@@ -10,13 +10,13 @@ Axios 기반 HTTP 클라이언트 패키지
 ## 설치
 
 ```bash
-npm install git+https://github.com/Nyang96/http-client.git#v0.1.0
+npm install git+https://github.com/Nyang96/api-client.git#v0.1.0
 ```
 
 ## 사용법
 
 ```typescript
-import { createHttpClient } from '@le/http-client';
+import { createHttpClient } from '@le/api-client';
 
 const { publicClient, privateClient } = createHttpClient({
   baseURL: 'https://api.example.com',
