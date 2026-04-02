@@ -2,8 +2,10 @@ import type { AxiosInstance } from 'axios';
 import type { ApiClientAuthConfig } from '../types';
 
 /**
- * private 요청 인터셉터
- * - Authorization 헤더에 Bearer 토큰 주입
+ * Sets up an authentication request interceptor for private requests
+ *
+ * - Retrieves access token via getAccessToken (supports async)
+ * - Injects Authorization header with Bearer token if available
  */
 export const setupAuthRequestInterceptor = (
   instance: AxiosInstance,

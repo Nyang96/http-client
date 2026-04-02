@@ -1,37 +1,50 @@
 import type {
   AxiosInstance,
-  AxiosError,
   InternalAxiosRequestConfig,
 } from 'axios';
 import type { ApiClientConfig, ErrorContext } from '../types';
+import { normalizeError } from '../utils/normalizeError';
 
 /**
- * 에러 후처리 인터셉터
- * - 최종 실패한 요청에 대해 onError 콜백 실행
- * - 에러 저장, 알림, 모니터링 등 프로젝트별 처리를 위임
+ * Sets up an error handling interceptor that normalizes errors into HttpError
+ *
+ * - Normalizes any thrown error into HttpError
+ * - Builds an ErrorContext with request/response metadata
+ * - Invokes the onError callback (if provided) with the normalized error
+ * - Always rejects with HttpError instead of raw AxiosError
  */
 export const setupErrorInterceptor = (
   instance: AxiosInstance,
   config: ApiClientConfig,
   clientType: 'public' | 'private'
 ) => {
-  if (!config.onError) return;
+  instance.interceptors.response.use(null, async (error: unknown) => {
+    // Normalize any error into HttpError
+    const httpError = normalizeError(error);
 
-  instance.interceptors.response.use(null, async (error: AxiosError) => {
-    const request = error.config as InternalAxiosRequestConfig;
-
+    // Build ErrorContext from normalized error and request config
     const context: ErrorContext = {
-      url: request?.url,
-      method: request?.method,
-      status: error.response?.status,
-      duration: request?._requestStartTime
-        ? Date.now() - request._requestStartTime
-        : null,
-      retryCount: request?._retryCount ?? 0,
+      url: httpError.url || undefined,
+      method: httpError.method || undefined,
+      status: httpError.status ?? undefined,
+      duration: httpError.duration,
+      // Extract retry count from Axios config (if available)
+      retryCount: (() => {
+        if (error && typeof error === 'object' && 'config' in error) {
+          const req = (error as any).config as InternalAxiosRequestConfig;
+          return req?._retryCount ?? 0;
+        }
+        return 0;
+      })(),
       clientType,
     };
 
-    await config.onError!(error, context);
-    return Promise.reject(error);
+    // Invoke onError callback with normalized error and context (if defined)
+    if (config.onError) {
+      await config.onError(httpError, context);
+    }
+
+    // Propagate normalized HttpError
+    return Promise.reject(httpError);
   });
 };

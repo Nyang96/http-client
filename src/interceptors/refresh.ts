@@ -6,13 +6,23 @@ import type {
 import type { ApiClientConfig, LogFn } from '../types';
 
 /**
- * 토큰 리프레시 인터셉터
+ * Sets up a token refresh interceptor for handling expired authentication
  *
- * 동작 흐름:
- * 1. 응답이 shouldRefresh 조건에 해당하면 리프레시 시작
- * 2. 이미 리프레시 중이면 pendingQueue에 대기
- * 3. 리프레시 성공 → 대기 큐 전부 해소 + 원본 요청 재시도
- * 4. 리프레시 실패 → 대기 큐 전부 reject + onAuthFailure 호출
+ * Flow:
+ * 1. If a response matches the refresh condition, initiate token refresh
+ * 2. While refresh is in progress, incoming requests are queued
+ * 3. On success:
+ *    - Update tokens via onTokenRefreshed
+ *    - Resolve all queued requests with the new access token
+ *    - Retry the original request
+ * 4. On failure:
+ *    - Reject all queued requests
+ *    - Invoke onAuthFailure
+ *
+ * Notes:
+ * - Prevents multiple concurrent refresh requests using a shared lock (isRefreshing)
+ * - Ensures a single refresh request with request queueing (pendingQueue)
+ * - Skips retry for canceled or already retried requests
  */
 export const setupRefreshInterceptor = (
   instance: AxiosInstance,
@@ -34,7 +44,7 @@ export const setupRefreshInterceptor = (
     pendingQueue = [];
   };
 
-  // refresh 대상 설정
+  // Determine whether the request should trigger token refresh
   const shouldRefresh = auth.shouldRefresh ?? ((error: AxiosError) => {
     const status = error.response?.status;
     const message = (error.response?.data as any)?.message;
@@ -48,15 +58,16 @@ export const setupRefreshInterceptor = (
     );
   });
 
+  // Response error interceptor (handles token expiration)
   instance.interceptors.response.use(null, async (error: AxiosError) => {
     const originalRequest = error.config as InternalAxiosRequestConfig;
 
-    // 취소된 요청은 무시
+    // Ignore canceled requests
     if (error.code === 'ERR_CANCELED') {
       return Promise.reject(error);
     }
 
-    // 리프레시 대상이 아니거나, 이미 재시도한 요청이면 통과
+    // Skip if not eligible for refresh or already retried
     if (
       !shouldRefresh(error) ||
       originalRequest?._alreadyRetried ||
@@ -65,7 +76,7 @@ export const setupRefreshInterceptor = (
       return Promise.reject(error);
     }
 
-    // 이미 갱신 중 → 큐에 대기
+    // If refresh is already in progress, queue the request
     if (isRefreshing) {
       return new Promise((resolve, reject) => {
         pendingQueue.push({
@@ -78,29 +89,36 @@ export const setupRefreshInterceptor = (
       });
     }
 
+    // Mark request as retried and acquire refresh lock
     originalRequest._alreadyRetried = true;
     isRefreshing = true;
 
     try {
+      // Retrieve refresh token
       const refreshTokenValue = await auth.getRefreshToken();
       if (!refreshTokenValue) {
         throw new Error('No refresh token available');
       }
 
+      // Perform token refresh request
       const tokens = await auth.refreshRequest(refreshTokenValue, config.baseURL);
+      // Update application state with new tokens
       await auth.onTokenRefreshed(tokens);
 
+      // Resolve queued requests and retry original request
       originalRequest.headers.Authorization = `Bearer ${tokens.accessToken}`;
       processQueue(null, tokens.accessToken);
 
       log('Token refreshed, retrying request');
       return instance(originalRequest);
     } catch (refreshError) {
+      // Reject all queued requests and trigger auth failure handler
       processQueue(refreshError, null);
       log('Token refresh failed');
       await auth.onAuthFailure();
       return Promise.reject(refreshError);
     } finally {
+      // Release refresh lock
       isRefreshing = false;
     }
   });

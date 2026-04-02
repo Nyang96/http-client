@@ -9,7 +9,14 @@ import { setupRetryInterceptor } from './interceptors/retry';
 import { setupErrorInterceptor } from './interceptors/errorHandler';
 import { setupContentTypeInterceptor } from './interceptors/contentType';
 
-// axios 확장 — 재시도/로깅용 커스텀 필드
+/**
+ * Extends Axios request config with internal fields used for
+ * retry control and logging
+ *
+ * - _alreadyRetried: prevents infinite retry loops
+ * - _retryCount: tracks the number of retry attempts
+ * - _requestStartTime: used to calculate request duration
+ */
 declare module 'axios' {
   interface InternalAxiosRequestConfig {
     _alreadyRetried?: boolean;
@@ -19,16 +26,20 @@ declare module 'axios' {
 }
 
 /**
- * Api 클라이언트 팩토리
+ * Creates configured Axios clients (public and optional private)
  *
- * 인터셉터 등록 순서 (순서가 동작에 영향):
- * [request]  로깅 → 인증(private만) → 전송
- * [response] 로깅 → 리프레시(private만) → 재시도 → 에러 후처리
+ * - Initializes base Axios instances
+ * - Attaches interceptors for logging, retry, error handling, etc.
+ * - Conditionally creates a private client when auth config is provided
+ *
+ * Client composition:
+ * - publicClient: logging → content-type → response → retry → error
+ * - privateClient: logging → content-type → auth → response → refresh → retry → error
  */
 export const createApiClient = (config: ApiClientConfig): ApiClientInstance => {
   const log = resolveLogger(config.debug);
 
-  // ── public client ──
+  // ── Public client (no authentication) ──
   const publicClient = createBaseInstance(config);
   setupRequestLogger(publicClient, log);
   setupContentTypeInterceptor(publicClient);
@@ -38,9 +49,8 @@ export const createApiClient = (config: ApiClientConfig): ApiClientInstance => {
   }
   setupErrorInterceptor(publicClient, config, 'public');
 
-  // ── private client (auth 설정이 있을 때만) ──
+  // ── Private client (requires auth configuration) ──
   let privateClient: AxiosInstance | null = null;
-
   if (config.auth) {
     privateClient = createBaseInstance(config);
     setupRequestLogger(privateClient, log);
@@ -48,6 +58,7 @@ export const createApiClient = (config: ApiClientConfig): ApiClientInstance => {
     setupAuthRequestInterceptor(privateClient, config.auth);
     setupResponseLogger(privateClient, log);
     setupRefreshInterceptor(privateClient, config, log);
+    console.log('register3')
     if (config.retry) {
       setupRetryInterceptor(privateClient, config.retry, log);
     }
@@ -57,8 +68,12 @@ export const createApiClient = (config: ApiClientConfig): ApiClientInstance => {
   return { publicClient, privateClient };
 };
 
-// ── 기본 인스턴스 생성 ──
-
+/**
+ * Creates a base Axios instance with default configuration
+ *
+ * - Applies baseURL, timeout, credentials, and default headers
+ * - Sets default Content-Type to application/json
+ */
 const createBaseInstance = (config: ApiClientConfig): AxiosInstance => {
   return axios.create({
     baseURL: config.baseURL,

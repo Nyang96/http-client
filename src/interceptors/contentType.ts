@@ -1,16 +1,18 @@
 import type { AxiosInstance } from 'axios';
 
 /**
- * Content-Type 인터셉터
- * - FormData → Content-Type 삭제 (브라우저가 boundary 포함해서 자동 설정)
- * - Blob → Content-Type 삭제
- * - URLSearchParams → application/x-www-form-urlencoded
- * - 그 외 → 기본값(application/json) 유지
+ * Sets up a Content-Type handling interceptor
+ *
+ * - FormData: removes Content-Type (browser automatically sets multipart boundary)
+ * - Blob: removes Content-Type (allows browser/adapter to infer it)
+ * - URLSearchParams: sets Content-Type to application/x-www-form-urlencoded
+ * - Others: keeps default Content-Type (typically application/json)
  */
 export const setupContentTypeInterceptor = (instance: AxiosInstance) => {
   instance.interceptors.request.use((config) => {
     const data = config.data;
 
+    // Let the browser set Content-Type with proper boundary
     if (data instanceof FormData || data instanceof Blob) {
       config.headers.delete('Content-Type');
     } else if (data instanceof URLSearchParams) {

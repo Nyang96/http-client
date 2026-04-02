@@ -6,9 +6,10 @@ import type {
 import type { RetryConfig, LogFn } from '../types';
 
 /**
- * 재시도 인터셉터
- * - 지정된 상태코드(502, 503, 504 등)에 대해 자동 재시도
- * - exponential 또는 linear 백오프 지원
+ * Sets up a retry interceptor for failed requests
+ *
+ * - Supports exponential or linear backoff strategies
+ * - Retries requests based on configured conditions
  */
 export const setupRetryInterceptor = (
   instance: AxiosInstance,

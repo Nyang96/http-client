@@ -2,7 +2,10 @@ import type { AxiosInstance } from 'axios';
 import type { LogFn } from '../types';
 
 /**
- * 요청 로깅 + 요청 시작 시간 기록
+ * Sets up a request logging interceptor
+ *
+ * - Logs outgoing requests in "{METHOD} {URL}" format
+ * - Attaches a request start timestamp (_requestStartTime) for duration tracking
  */
 export const setupRequestLogger = (instance: AxiosInstance, log: LogFn) => {
   instance.interceptors.request.use((config) => {
@@ -13,7 +16,10 @@ export const setupRequestLogger = (instance: AxiosInstance, log: LogFn) => {
 };
 
 /**
- * 응답 성공 시 소요 시간 로깅
+ * Sets up a response logging interceptor
+ *
+ * - Logs completed requests with duration in "{METHOD} {URL} ({duration}ms)" format
+ * - Uses _requestStartTime from request interceptor to calculate elapsed time
  */
 export const setupResponseLogger = (instance: AxiosInstance, log: LogFn) => {
   instance.interceptors.response.use((response) => {

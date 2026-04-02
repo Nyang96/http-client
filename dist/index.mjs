@@ -60,32 +60,143 @@ var t = (e) => e ? typeof e == "function" ? e : (e, t) => {
 		}
 		return Promise.reject(t);
 	});
-}, s = (e, t, n) => {
-	t.onError && e.interceptors.response.use(null, async (e) => {
-		let r = e.config, i = {
-			url: r?.url,
-			method: r?.method,
-			status: e.response?.status,
-			duration: r?._requestStartTime ? Date.now() - r._requestStartTime : null,
-			retryCount: r?._retryCount ?? 0,
+};
+//#endregion
+//#region src/utils/normalizeError.ts
+function s(e) {
+	return e || "";
+}
+function c(e, t, n) {
+	try {
+		let r = new URL(t ?? "", e);
+		if (n) {
+			let e = new URLSearchParams();
+			Object.entries(n).forEach(([t, n]) => {
+				n != null && (Array.isArray(n) ? n.forEach((n) => e.append(t, String(n))) : e.append(t, String(n)));
+			}), r.search = e.toString();
+		}
+		return r.toString();
+	} catch {
+		return t ?? "";
+	}
+}
+function l(e) {
+	if (!e || typeof e != "object") return;
+	let t = e;
+	if (typeof t.message == "string") return t.message;
+	if (typeof t.error == "string") return t.error;
+	if (typeof t.msg == "string") return t.msg;
+	if (t.error && typeof t.error.message == "string") return t.error.message;
+}
+function u(e) {
+	if (!e || typeof e != "object") return null;
+	let t = e;
+	return typeof t.code == "string" ? t.code : typeof t.errorCode == "string" ? t.errorCode : typeof t.error_code == "string" ? t.error_code : null;
+}
+function d(e) {
+	let t = e.config;
+	if (!t) return null;
+	let n = c(t.baseURL, t.url);
+	return {
+		url: t.url ?? "",
+		method: (t.method ?? "").toUpperCase(),
+		headers: p(t.headers),
+		params: t.params ?? null,
+		data: t.data ?? null,
+		timeout: t.timeout ?? null,
+		baseURL: t.baseURL ?? "",
+		fullURL: n
+	};
+}
+function f(e) {
+	let t = e.response;
+	return t ? {
+		status: t.status,
+		statusText: t.statusText ?? "",
+		headers: p(t.headers),
+		data: t.data ?? null
+	} : null;
+}
+function p(e) {
+	if (!e || typeof e != "object") return {};
+	if (typeof e.toJSON == "function") {
+		let t = e.toJSON();
+		return Object.fromEntries(Object.entries(t).map(([e, t]) => [e, String(t)]));
+	}
+	return Object.fromEntries(Object.entries(e).map(([e, t]) => [e, String(t)]));
+}
+var m = (t) => {
+	let n = (/* @__PURE__ */ new Date()).toISOString();
+	if (e.isAxiosError(t)) {
+		let e = t.response?.status ?? null, r = t.response?.data;
+		return {
+			status: e,
+			statusText: t.response?.statusText ?? "",
+			message: s(l(r)),
+			code: u(r) ?? t.code ?? null,
+			url: t.config?.url ?? "",
+			fullURL: d(t)?.fullURL ?? "",
+			method: (t.config?.method ?? "").toUpperCase(),
+			request: d(t),
+			response: f(t),
+			duration: t.config?._requestStartTime ? Date.now() - t.config._requestStartTime : null,
+			timestamp: n,
+			originalError: t
+		};
+	}
+	return t instanceof Error ? {
+		status: null,
+		statusText: "",
+		message: t instanceof SyntaxError || t.message.includes("JSON") ? "서버 응답을 처리할 수 없습니다." : t.message,
+		code: t.name,
+		url: "",
+		fullURL: "",
+		method: "",
+		request: null,
+		response: null,
+		duration: null,
+		timestamp: n,
+		originalError: t
+	} : {
+		status: null,
+		statusText: "",
+		message: typeof t == "string" ? t : "알 수 없는 오류가 발생했습니다.",
+		code: null,
+		url: "",
+		fullURL: "",
+		method: "",
+		request: null,
+		response: null,
+		duration: null,
+		timestamp: n,
+		originalError: t
+	};
+}, h = (e) => typeof e == "object" && !!e && "timestamp" in e && "originalError" in e, g = (e, t, n) => {
+	e.interceptors.response.use(null, async (e) => {
+		let r = m(e), i = {
+			url: r.url || void 0,
+			method: r.method || void 0,
+			status: r.status ?? void 0,
+			duration: r.duration,
+			retryCount: e && typeof e == "object" && "config" in e ? e.config?._retryCount ?? 0 : 0,
 			clientType: n
 		};
-		return await t.onError(e, i), Promise.reject(e);
+		return t.onError && await t.onError(r, i), Promise.reject(r);
 	});
-}, c = (e) => {
+}, _ = (e) => {
 	e.interceptors.request.use((e) => {
 		let t = e.data;
 		return t instanceof FormData || t instanceof Blob ? e.headers.delete("Content-Type") : t instanceof URLSearchParams && e.headers.set("Content-Type", "application/x-www-form-urlencoded"), e;
 	});
-}, l = (e) => {
-	let l = t(e.debug), d = u(e);
-	n(d, l), c(d), r(d, l), e.retry && o(d, e.retry, l), s(d, e, "public");
-	let f = null;
-	return e.auth && (f = u(e), n(f, l), c(f), i(f, e.auth), r(f, l), a(f, e, l), e.retry && o(f, e.retry, l), s(f, e, "private")), {
-		publicClient: d,
-		privateClient: f
+}, v = (e) => {
+	let s = t(e.debug), c = y(e);
+	n(c, s), _(c), r(c, s), e.retry && o(c, e.retry, s), g(c, e, "public");
+	let l = null;
+	return e.auth && (l = y(e), n(l, s), _(l), i(l, e.auth), r(l, s), a(l, e, s), console.log("register3"), e.retry && o(l, e.retry, s), g(l, e, "private")), {
+		publicClient: c,
+		privateClient: l
 	};
-}, u = (t) => e.create({
+}, y = (t) => e.create({
 	baseURL: t.baseURL,
 	timeout: t.timeout ?? 3e4,
 	withCredentials: t.withCredentials ?? !1,
@@ -95,4 +206,4 @@ var t = (e) => e ? typeof e == "function" ? e : (e, t) => {
 	}
 });
 //#endregion
-export { l as createApiClient };
+export { v as createApiClient, h as isHttpError, m as normalizeError };

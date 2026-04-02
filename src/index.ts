@@ -1,4 +1,5 @@
 export { createApiClient } from './createApiClient';
+export { normalizeError, isHttpError } from './utils/normalizeError';
 
 export type {
   ApiClientConfig,
@@ -9,4 +10,7 @@ export type {
   ErrorContext,
   RetryConfig,
   LogFn,
+  HttpError,
+  HttpErrorRequest,
+  HttpErrorResponse,
 } from './types';
