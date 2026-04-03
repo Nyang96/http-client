@@ -1,4 +1,4 @@
-# @le/api-client
+## @nyang96/api-client
 
 Axios 기반의 범용 HTTP 클라이언트 라이브러리.
 
@@ -20,7 +20,7 @@ npm install git+https://github.com/Nyang96/api-client.git#v1.0.0
 ## 기본 사용법
 
 ```typescript
-import { createApiClient } from '@le/api-client';
+import { createApiClient } from '@nyang96/api-client';
 
 const { publicClient, privateClient } = createApiClient({
   baseURL: 'https://api.example.com',
@@ -150,7 +150,7 @@ interface HttpError {
 타입 가드로 catch 블록에서 안전하게 타입을 좁힐 수 있습니다:
 
 ```typescript
-import { isHttpError } from '@le/api-client';
+import { isHttpError } from '@nyang96/api-client';
 
 try {
   await privateClient!.get('/api/resource');
@@ -167,7 +167,7 @@ try {
 라이브러리는 `HttpError`까지만 정규화하고, 프로젝트별 에러 형태 변환은 소비 측에서 처리합니다:
 
 ```typescript
-import { isHttpError, type HttpError } from '@le/api-client';
+import { isHttpError, type HttpError } from '@nyang96/api-client';
 
 interface ApiErrorResponse {
   isSuccess: false;
